@@ -27,7 +27,7 @@
                 </ul>
             </li>
         </ul>
-        <ul class="navbar-nav" v-else>
+        <ul class="navbar-nav" v-else-if="!store.state.user.pulling_info">
             <li class="nav-item">
                 <router-link :to="{name: 'user_account_login'}" :class="route_name === 'user_account_login' ? 'nav-link active' : 'nav-link'" href="#">登录</router-link>
             </li>
