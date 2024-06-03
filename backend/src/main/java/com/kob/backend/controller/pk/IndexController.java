@@ -9,11 +9,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * @create 2024-05-28-上午9:20
  */
 @Controller
-@RequestMapping("/pk/")
-public class indexController {
+public class IndexController {
 
-    @RequestMapping("index/")
-    public String index(){
+    @RequestMapping("/")
+    public String index() {
         return "pk/index.html";
     }
 }
+
