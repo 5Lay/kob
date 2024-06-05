@@ -1,6 +1,11 @@
 <template>
     <ContentField v-if="!store.state.user.pulling_info">
         <div class="row justify-content-md-center">
+            <div class="col-2 ">
+                <img src="../../../assets/images/logo.png" alt="" style="width: 100%;" >
+            </div>
+        </div>
+        <div class="row justify-content-md-center">
             <div class="col-3">
                 <form @submit.prevent="login">
                     <div class="mb-3">
@@ -96,4 +101,5 @@ button {
 div.error-message {
     color: red;
 }
+
 </style>
