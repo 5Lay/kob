@@ -2,7 +2,10 @@ package com.kob.backend.comsumer.utils;
 
 import com.alibaba.fastjson.JSONObject;
 import com.kob.backend.comsumer.WebSocketServer;
+import com.kob.backend.pojo.Bot;
 import com.kob.backend.pojo.Record;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import javax.sound.midi.VoiceStatus;
 import java.util.ArrayList;
@@ -28,14 +31,27 @@ public class Game extends Thread{
     private ReentrantLock lock = new ReentrantLock();
     private String status = "playing"; // "playing" => "finished"
     private String loser = ""; // all: 平局, A: A输, B: B输
+    private final static String addBotUrl = "http://127.0.0.1:3002/bot/add/";
 
-    public Game(Integer rows, Integer cols, Integer inner_walls_count, Integer idA, Integer idB) {
+    public Game(Integer rows, Integer cols, Integer inner_walls_count, Integer idA, Bot botA, Integer idB, Bot botB) {
         this.rows = rows;
         this.cols = cols;
         this.inner_walls_count = inner_walls_count;
         this.g = new int[rows][cols];
-        playerA = new Player(idA, rows - 2, 1, new ArrayList<>());
-        playerB = new Player(idB, 1, cols - 2, new ArrayList<>());
+
+        Integer botIdA = -1, botIdB = -1;
+        String botCodeA = "", botCodeB = "";
+        if (botA != null) {
+            botIdA = botA.getId();
+            botCodeA = botA.getContent();
+        }
+        if (botB != null) {
+            botIdB = botB.getId();
+            botCodeB = botB.getContent();
+        }
+
+        playerA = new Player(idA, botIdA, botCodeA, rows - 2, 1, new ArrayList<>());
+        playerB = new Player(idB, botIdB, botCodeB, 1, cols - 2, new ArrayList<>());
     }
 
     public Player getPlayerA() {
@@ -128,12 +144,44 @@ public class Game extends Thread{
         }
     }
 
+    private String getInput(Player player) {  // 将当前的局面信息，编码成字符串
+        Player me, you;
+        if (playerA.getId().equals(player.getId())) {
+            me = playerA;
+            you = playerB;
+        } else {
+            me = playerB;
+            you = playerA;
+        }
+
+        return getMapString() + "#" +
+                me.getSx() + "#" +
+                me.getSy() + "#(" +
+                me.getStepsString() + ")#" +
+                you.getSx() + "#" +
+                you.getSy() + "#(" +
+                you.getStepsString() + ")";
+    }
+
+    private void sendBotCode(Player player) {
+        if (player.getBotId().equals(-1)) return;  // 亲自出马，不需要执行代码
+        MultiValueMap<String, String> data = new LinkedMultiValueMap<>();
+        data.add("user_id", player.getId().toString());
+        data.add("bot_code", player.getBotCode());
+        data.add("input", getInput(player));
+        WebSocketServer.restTemplate.postForObject(addBotUrl, data, String.class);
+    }
+
+
     private boolean nextStep() {  // 等待两名玩家的下一步操作
         try {
             Thread.sleep(200);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+
+        sendBotCode(playerA);
+        sendBotCode(playerB);
 
         for (int i = 0; i < 50; i ++ ) {
             try {
@@ -160,21 +208,27 @@ public class Game extends Thread{
     private boolean check_valid(List<Cell> cellsA, List<Cell> cellsB) {
         int n = cellsA.size();
         Cell cell = cellsA.get(n - 1);
-        if (g[cell.x][cell.y] == 1) return false;
-
-        for (int i = 0; i < n - 1; i ++ ) {
-            if (cellsA.get(i).x == cell.x && cellsA.get(i).y == cell.y)
-                return false;
+        if (g[cell.x][cell.y] == 1) {
+            System.out.println(cell.x + " " + cell.y);
+            return false;
         }
 
         for (int i = 0; i < n - 1; i ++ ) {
-            if (cellsB.get(i).x == cell.x && cellsB.get(i).y == cell.y)
+            if (cellsA.get(i).x == cell.x && cellsA.get(i).y == cell.y) {
+                System.out.println(cell.x + " " + cell.y + " " + cellsA.get(i).x + " " + cellsA.get(i).y);
                 return false;
+            }
+        }
+
+        for (int i = 0; i < n - 1; i ++ ) {
+            if (cellsB.get(i).x == cell.x && cellsB.get(i).y == cell.y) {
+                System.out.println(cell.x + " " + cell.y + " " + cellsB.get(i).x + " " + cellsB.get(i).y);
+                return false;
+            }
         }
 
         return true;
     }
-
 
     private void judge() {  // 判断两名玩家下一步操作是否合法
         List<Cell> cellsA = playerA.getCells();
@@ -194,6 +248,7 @@ public class Game extends Thread{
             }
         }
     }
+
 
 
     private void sendAllMessage(String message) {
@@ -255,6 +310,7 @@ public class Game extends Thread{
         saveToDatabase();
         sendAllMessage(resp.toJSONString());
     }
+
 
     @Override
     public void run() {

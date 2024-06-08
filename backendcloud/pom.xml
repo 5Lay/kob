@@ -8,6 +8,7 @@
     <modules>
         <module>matchingsystem</module>
         <module>backend</module>
+        <module>botruningsystem</module>
     </modules>
     <name>backendcloud</name>
     <description>backendcloud</description>
